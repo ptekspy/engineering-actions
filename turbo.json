@@ -16,6 +16,10 @@
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "list-open-prs": {
+      "cache": false,
+      "dependsOn": ["^build"]
     }
   }
 }
