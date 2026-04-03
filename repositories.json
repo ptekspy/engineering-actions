@@ -4,11 +4,13 @@
     "requiredCiStatusChecks": [
       "unit-test",
       "build"
-    ]
+    ],
+    "baseBranches": ["dev"]
   },
   "Evolvo-org/evolvo-ts": {
     "minimumHumanReview": 0,
     "requiredCiStatusChecks": [
-    ]
+    ],
+    "baseBranches": ["main"]
   }
 }

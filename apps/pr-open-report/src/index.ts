@@ -16,6 +16,7 @@ type PullRequest = {
 	title: string;
 	url: string;
 	updatedAt: string;
+	baseRefName: string;
 };
 
 type PullRequestReview = {
@@ -48,6 +49,7 @@ type PullRequestReportRow = PullRequest & {
 type RepositoryPolicy = {
 	minimumHumanReview: number;
 	requiredCiStatusChecks: string[];
+	baseBranches: string[];
 };
 
 type RepositoryConfig = Record<string, RepositoryPolicy>;
@@ -98,7 +100,7 @@ function normalizeRepositoryConfig(raw: unknown, source: string): RepositoryConf
 			throw new Error(`Invalid config for ${repository} in ${source}. Expected an object.`);
 		}
 
-		const { minimumHumanReview = 0, requiredCiStatusChecks = [] } = policy as Partial<RepositoryPolicy>;
+		const { minimumHumanReview = 0, requiredCiStatusChecks = [], baseBranches = [] } = policy as Partial<RepositoryPolicy>;
 
 		if (!Number.isInteger(minimumHumanReview) || minimumHumanReview < 0) {
 			throw new Error(`Invalid minimumHumanReview for ${repository} in ${source}. Expected a non-negative integer.`);
@@ -108,9 +110,14 @@ function normalizeRepositoryConfig(raw: unknown, source: string): RepositoryConf
 			throw new Error(`Invalid requiredCiStatusChecks for ${repository} in ${source}. Expected an array of strings.`);
 		}
 
+		if (!Array.isArray(baseBranches) || baseBranches.some((value) => typeof value !== "string" || value.trim() === "")) {
+			throw new Error(`Invalid baseBranches for ${repository} in ${source}. Expected an array of non-empty strings.`);
+		}
+
 		normalized[repository] = {
 			minimumHumanReview,
-			requiredCiStatusChecks
+			requiredCiStatusChecks,
+			baseBranches
 		};
 	}
 
@@ -128,7 +135,8 @@ function normalizeLegacyRepositoryList(raw: unknown[], source: string): Reposito
 		assertValidRepositoryName(value, source);
 		normalized[value] = {
 			minimumHumanReview: 0,
-			requiredCiStatusChecks: []
+			requiredCiStatusChecks: [],
+			baseBranches: []
 		};
 	}
 
@@ -154,12 +162,20 @@ async function listOpenPullRequests(repository: string, policy: RepositoryPolicy
 		"--limit",
 		"100",
 		"--json",
-		"number,title,url,updatedAt"
+		"number,title,url,updatedAt,baseRefName"
 	]);
 
-	const parsed = JSON.parse(stdout) as PullRequest[];
+	const parsed = (JSON.parse(stdout) as PullRequest[]).filter((pullRequest) => matchesBaseBranchPolicy(pullRequest, policy));
 
 	return Promise.all(parsed.map((pullRequest) => hydratePullRequestReportRow(repository, policy, pullRequest)));
+}
+
+function matchesBaseBranchPolicy(pullRequest: PullRequest, policy: RepositoryPolicy): boolean {
+	if (policy.baseBranches.length === 0) {
+		return true;
+	}
+
+	return policy.baseBranches.includes(pullRequest.baseRefName);
 }
 
 async function hydratePullRequestReportRow(
