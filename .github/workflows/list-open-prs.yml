@@ -22,13 +22,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
+
+      - name: Install pnpm
+        run: corepack enable pnpm && corepack prepare pnpm@latest --activate
 
       - name: Install dependencies
-        run: npm install
+        run: pnpm install
 
       - name: Build PR reporter
-        run: npm run build -- --filter=@engineering-actions/pr-open-report
+        run: pnpm build -- --filter=@engineering-actions/pr-open-report
 
       - name: List open PRs
-        run: node apps/pr-open-report/dist/index.js
+        run: pnpm list-open-prs
