@@ -58,6 +58,14 @@ type RepositoryConfig = Record<string, RepositoryPolicy>;
 
 type PagesConfig = {
 	repositoryToManagePages: string;
+	navigationCards: NavigationCard[];
+};
+
+type NavigationCard = {
+	eyebrow: string;
+	title: string;
+	description: string;
+	path: string;
 };
 
 type RepositoryStatsData = {
@@ -70,7 +78,9 @@ type RepositoryStatsData = {
 type PagesStatsData = {
 	generatedAt: string;
 	repositoryToManagePages: string;
+	siteBasePath: string;
 	overviewPath: string;
+	navigationCards: NavigationCard[];
 	repositories: RepositoryStatsData[];
 	pullRequests: PullRequestReportRow[];
 };
@@ -105,9 +115,8 @@ function safeJsonParse(raw: string, source: string): unknown {
 
 async function parsePagesConfig(): Promise<PagesConfig> {
 	const raw = await readFile(defaultPagesConfigPath, "utf8");
-	const match = raw.match(/repositoryToManagePages\s*:\s*["'`]([^"'`]+)["'`]/);
-
-	const repositoryToManagePages = match?.[1];
+	const parsed = parsePagesConfigObject(raw);
+	const repositoryToManagePages = parsed.repositoryToManagePages;
 
 	if (!repositoryToManagePages) {
 		throw new Error(`Invalid pages config in ${defaultPagesConfigPath}. Expected repositoryToManagePages string field.`);
@@ -116,7 +125,73 @@ async function parsePagesConfig(): Promise<PagesConfig> {
 	assertValidRepositoryName(repositoryToManagePages, defaultPagesConfigPath);
 
 	return {
-		repositoryToManagePages
+		repositoryToManagePages,
+		navigationCards: normalizeNavigationCards(parsed.navigationCards)
+	};
+}
+
+function parsePagesConfigObject(raw: string): Partial<PagesConfig> {
+	const match = raw.match(/const\s+pagesConfig\s*=\s*({[\s\S]*?})\s*;\s*export\s+default\s+pagesConfig\s*;?/);
+	const objectLiteral = match?.[1];
+
+	if (!objectLiteral) {
+		throw new Error(`Invalid pages config in ${defaultPagesConfigPath}. Expected a pagesConfig object export.`);
+	}
+
+	try {
+		return Function(`"use strict"; return (${objectLiteral});`)() as Partial<PagesConfig>;
+	} catch {
+		throw new Error(`Invalid pages config in ${defaultPagesConfigPath}. Could not evaluate pagesConfig object.`);
+	}
+}
+
+function normalizeNavigationCards(raw: unknown): NavigationCard[] {
+	if (raw === undefined) {
+		return [
+			{
+				eyebrow: "Report",
+				title: "Open PRs",
+				description: "Browse monitored repositories and drill into the pull requests currently open in each repo.",
+				path: "/open-prs/"
+			}
+		];
+	}
+
+	if (!Array.isArray(raw)) {
+		throw new Error(`Invalid navigationCards in ${defaultPagesConfigPath}. Expected an array of page cards.`);
+	}
+
+	return raw.map((entry, index) => normalizeNavigationCard(entry, index));
+}
+
+function normalizeNavigationCard(raw: unknown, index: number): NavigationCard {
+	if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+		throw new Error(`Invalid navigationCards[${index}] in ${defaultPagesConfigPath}. Expected an object.`);
+	}
+
+	const { eyebrow = "Page", title, description, path: cardPath } = raw as Partial<NavigationCard>;
+
+	if (typeof eyebrow !== "string" || eyebrow.trim() === "") {
+		throw new Error(`Invalid navigationCards[${index}].eyebrow in ${defaultPagesConfigPath}. Expected a non-empty string.`);
+	}
+
+	if (typeof title !== "string" || title.trim() === "") {
+		throw new Error(`Invalid navigationCards[${index}].title in ${defaultPagesConfigPath}. Expected a non-empty string.`);
+	}
+
+	if (typeof description !== "string" || description.trim() === "") {
+		throw new Error(`Invalid navigationCards[${index}].description in ${defaultPagesConfigPath}. Expected a non-empty string.`);
+	}
+
+	if (typeof cardPath !== "string" || !cardPath.startsWith("/")) {
+		throw new Error(`Invalid navigationCards[${index}].path in ${defaultPagesConfigPath}. Expected a route path beginning with /.`);
+	}
+
+	return {
+		eyebrow: eyebrow.trim(),
+		title: title.trim(),
+		description: description.trim(),
+		path: normalizeRoutePath(cardPath)
 	};
 }
 
@@ -372,7 +447,9 @@ async function writePagesStatsData(pullRequests: PullRequestReportRow[]): Promis
 	const data: PagesStatsData = {
 		generatedAt: new Date().toISOString(),
 		repositoryToManagePages: pagesConfig.repositoryToManagePages,
+		siteBasePath: getPagesSiteBasePath(pagesConfig.repositoryToManagePages),
 		overviewPath: "/open-prs/",
+		navigationCards: pagesConfig.navigationCards,
 		repositories,
 		pullRequests
 	};
@@ -383,6 +460,24 @@ async function writePagesStatsData(pullRequests: PullRequestReportRow[]): Promis
 
 function buildRepositoryRoute(repository: string): string {
 	return `/open-prs/${repository}/`;
+}
+
+function getPagesSiteBasePath(repository: string): string {
+	const [owner, repo, ...rest] = repository.split("/");
+
+	if (!owner || !repo || rest.length > 0) {
+		throw new Error(`Invalid repository entry: ${repository} in ${defaultPagesConfigPath}. Expected owner/repo format.`);
+	}
+
+	return repo === `${owner}.github.io` ? "/" : `/${repo}/`;
+}
+
+function normalizeRoutePath(routePath: string): string {
+	if (routePath === "/") {
+		return "/";
+	}
+
+	return routePath.endsWith("/") ? routePath : `${routePath}/`;
 }
 
 function groupByRepository(pullRequests: PullRequestReportRow[]): Map<string, PullRequestReportRow[]> {

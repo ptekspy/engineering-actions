@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build && node scripts/postbuild.mjs",
-    "dev": "vite",
+    "dev": "vite --host 0.0.0.0 --port 4173 --strictPort",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {

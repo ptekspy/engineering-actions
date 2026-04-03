@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -11,7 +11,9 @@ const reportDataPath = path.join(appRoot, "src", "generated", "open-prs.json");
 
 const reportData = JSON.parse(await readFile(reportDataPath, "utf8"));
 
-await writeFile(path.join(distRoot, "index.html"), buildRedirectHtml("open-prs/"), "utf8");
+await removeStaleDistEntries();
+
+await copyFile(path.join(openPrsRoot, "index.html"), path.join(distRoot, "index.html"));
 await copyFile(path.join(openPrsRoot, "index.html"), path.join(distRoot, "404.html"));
 
 for (const repository of reportData.repositories) {
@@ -21,16 +23,12 @@ for (const repository of reportData.repositories) {
   await copyFile(path.join(openPrsRoot, "index.html"), path.join(repositoryDir, "index.html"));
 }
 
-function buildRedirectHtml(target) {
-  return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="refresh" content="0; url=${target}" />
-    <title>Redirecting</title>
-  </head>
-  <body>
-    <p>Redirecting to <a href="${target}">${target}</a>.</p>
-  </body>
-</html>`;
+async function removeStaleDistEntries() {
+  const distEntries = await readdir(distRoot, { withFileTypes: true });
+
+  await Promise.all(
+    distEntries
+      .filter((entry) => entry.name !== "open-prs")
+      .map((entry) => rm(path.join(distRoot, entry.name), { recursive: true, force: true }))
+  );
 }
