@@ -18,17 +18,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
         with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install pnpm
-        run: corepack enable pnpm && corepack prepare pnpm@latest --activate
-
-      - name: Install dependencies
-        run: pnpm install
+          version: 9
+          cache: true
 
       - name: Build PR reporter
         run: pnpm build -- --filter=@engineering-actions/pr-open-report
