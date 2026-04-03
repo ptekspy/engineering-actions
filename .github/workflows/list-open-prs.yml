@@ -28,7 +28,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build PR reporter
-        run: pnpm build -- --filter=@engineering-actions/pr-open-report
+        run: pnpm build --filter @engineering-actions/pr-open-report
 
       - name: List open PRs
         run: pnpm list-open-prs
