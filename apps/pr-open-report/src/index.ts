@@ -11,6 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const defaultRepositoryConfigPath = path.resolve(__dirname, "../../../repositories.json");
 const defaultPagesConfigPath = path.resolve(__dirname, "../../../pages.config.ts");
+const defaultPagesStatsDataPath = path.resolve(__dirname, "../../../apps/pages-stats/src/generated/open-prs.json");
 
 type PullRequest = {
 	number: number;
@@ -57,6 +58,21 @@ type RepositoryConfig = Record<string, RepositoryPolicy>;
 
 type PagesConfig = {
 	repositoryToManagePages: string;
+};
+
+type RepositoryStatsData = {
+	repository: string;
+	path: string;
+	pullRequestCount: number;
+	pullRequests: PullRequestReportRow[];
+};
+
+type PagesStatsData = {
+	generatedAt: string;
+	repositoryToManagePages: string;
+	overviewPath: string;
+	repositories: RepositoryStatsData[];
+	pullRequests: PullRequestReportRow[];
 };
 
 async function ensureGhAvailable(): Promise<void> {
@@ -323,185 +339,8 @@ function buildMarkdownReport(pullRequests: PullRequestReportRow[]): string {
 	return lines.join("\n");
 }
 
-function buildHtmlReport(title: string, subtitle: string, pullRequests: PullRequestReportRow[], repositoryPageLinks?: Map<string, string>): string {
-	const generatedAt = new Date().toISOString();
-	const rows = pullRequests.length === 0
-		? '<tr><td colspan="4">No open pull requests found.</td></tr>'
-		: pullRequests
-			.map((pullRequest) => buildHtmlRow(pullRequest, repositoryPageLinks))
-			.join("");
-
-	return `<!DOCTYPE html>
-<html lang="en">
-<head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>${escapeHtml(title)}</title>
-	<style>
-		:root {
-			color-scheme: light;
-			--background: #f6f7f4;
-			--panel: #ffffff;
-			--foreground: #17202a;
-			--muted: #5f6b76;
-			--line: #d7dde3;
-			--accent: #0f6cbd;
-			--success: #0f7b3e;
-			font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
-		}
-
-		body {
-			margin: 0;
-			background: linear-gradient(180deg, #eef5ff 0%, var(--background) 45%, #f6f7f4 100%);
-			color: var(--foreground);
-		}
-
-		main {
-			max-width: 1100px;
-			margin: 0 auto;
-			padding: 48px 20px 72px;
-		}
-
-		header {
-			margin-bottom: 24px;
-		}
-
-		h1 {
-			margin: 0 0 8px;
-			font-size: clamp(2rem, 4vw, 3.5rem);
-			line-height: 0.95;
-		}
-
-		p {
-			margin: 0;
-			color: var(--muted);
-		}
-
-		section {
-			background: var(--panel);
-			border: 1px solid var(--line);
-			border-radius: 18px;
-			overflow: hidden;
-			box-shadow: 0 18px 50px rgba(16, 24, 40, 0.08);
-		}
-
-		table {
-			width: 100%;
-			border-collapse: collapse;
-		}
-
-		th,
-		td {
-			padding: 14px 16px;
-			text-align: left;
-			border-bottom: 1px solid var(--line);
-			vertical-align: top;
-		}
-
-		th {
-			background: #f8fbff;
-			font-size: 0.84rem;
-			text-transform: uppercase;
-			letter-spacing: 0.04em;
-			color: var(--muted);
-		}
-
-		tr:last-child td {
-			border-bottom: 0;
-		}
-
-		a {
-			color: var(--accent);
-			text-decoration: none;
-		}
-
-		a:hover {
-			text-decoration: underline;
-		}
-
-		.ready {
-			color: var(--success);
-			font-weight: 600;
-		}
-
-		footer {
-			margin-top: 18px;
-			font-size: 0.92rem;
-			color: var(--muted);
-		}
-
-		nav {
-			margin: 0 0 18px;
-		}
-
-		nav a {
-			font-size: 0.92rem;
-		}
-
-		@media (max-width: 720px) {
-			main {
-				padding: 28px 12px 40px;
-			}
-
-			th,
-			td {
-				padding: 12px;
-				font-size: 0.92rem;
-			}
-		}
-	</style>
-</head>
-<body>
-	<main>
-		<header>
-			<h1>${escapeHtml(title)}</h1>
-			<p>${escapeHtml(subtitle)}</p>
-			<p>Total open PRs: ${pullRequests.length}</p>
-		</header>
-		<section>
-			<table>
-				<thead>
-					<tr>
-						<th>Repo title- linked</th>
-						<th>Review Status</th>
-						<th>CI check</th>
-						<th>ready to merge</th>
-					</tr>
-				</thead>
-				<tbody>${rows}</tbody>
-			</table>
-		</section>
-		<footer>Generated at ${escapeHtml(generatedAt)}</footer>
-	</main>
-</body>
-</html>`;
-}
-
-function buildHtmlRow(pullRequest: PullRequestReportRow, repositoryPageLinks?: Map<string, string>): string {
-	const repoPageLink = repositoryPageLinks?.get(pullRequest.repository);
-	const repositoryLabel = `${pullRequest.repository} - ${pullRequest.title}`;
-	const cellContent = repoPageLink
-		? `<div><a href="${escapeHtmlAttribute(repoPageLink)}">${escapeHtml(pullRequest.repository)}</a></div><div><a href="${escapeHtmlAttribute(pullRequest.url)}">${escapeHtml(pullRequest.title)}</a></div>`
-		: `<a href="${escapeHtmlAttribute(pullRequest.url)}">${escapeHtml(repositoryLabel)}</a>`;
-
-	return `<tr><td>${cellContent}</td><td>${escapeHtml(pullRequest.reviewStatus)}</td><td>${escapeHtml(pullRequest.ciStatus)}</td><td>${pullRequest.readyToMerge ? "yes" : "no"}</td></tr>`;
-}
-
 function escapeTableCell(value: string): string {
 	return value.replace(/\|/g, "\\|").replace(/\n/g, " ").trim();
-}
-
-function escapeHtml(value: string): string {
-	return value
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/\"/g, "&quot;")
-		.replace(/'/g, "&#39;");
-}
-
-function escapeHtmlAttribute(value: string): string {
-	return escapeHtml(value);
 }
 
 async function writeStepSummary(markdown: string): Promise<void> {
@@ -519,75 +358,31 @@ async function writeStepSummary(markdown: string): Promise<void> {
 	}
 }
 
-async function writePagesSite(pullRequests: PullRequestReportRow[]): Promise<void> {
-	const outputDir = process.env.PAGES_OUTPUT_DIR;
-
-	if (!outputDir) {
-		return;
-	}
-
+async function writePagesStatsData(pullRequests: PullRequestReportRow[]): Promise<void> {
+	const outputPath = process.env.PAGES_STATS_DATA_PATH ?? defaultPagesStatsDataPath;
 	const pagesConfig = await parsePagesConfig();
-	const openPrsDir = path.join(outputDir, "open-prs");
 	const repositoryGroups = groupByRepository(pullRequests);
-	const repositoryPageLinks = new Map<string, string>();
+	const repositories = [...repositoryGroups.entries()].map(([repository, repositoryPullRequests]) => ({
+		repository,
+		path: buildRepositoryRoute(repository),
+		pullRequestCount: repositoryPullRequests.length,
+		pullRequests: repositoryPullRequests
+	}));
 
-	await mkdir(openPrsDir, { recursive: true });
+	const data: PagesStatsData = {
+		generatedAt: new Date().toISOString(),
+		repositoryToManagePages: pagesConfig.repositoryToManagePages,
+		overviewPath: "/open-prs/",
+		repositories,
+		pullRequests
+	};
 
-	for (const repository of repositoryGroups.keys()) {
-		repositoryPageLinks.set(repository, `../${repository}/`);
-	}
-
-	await writeFile(
-		path.join(outputDir, "index.html"),
-		buildIndexRedirectHtml("open-prs/"),
-		"utf8"
-	);
-	await writeFile(
-		path.join(openPrsDir, "index.html"),
-		buildHtmlReport(
-			"Open PR Report",
-			`Managed pages repo: ${pagesConfig.repositoryToManagePages}`,
-			pullRequests,
-			repositoryPageLinks
-		),
-		"utf8"
-	);
-
-	for (const [repository, repositoryPullRequests] of repositoryGroups) {
-		const repositoryDir = path.join(openPrsDir, repository);
-		await mkdir(repositoryDir, { recursive: true });
-		await writeFile(
-			path.join(repositoryDir, "index.html"),
-			buildHtmlReport(
-				`Open PR Report: ${repository}`,
-				`Managed pages repo: ${pagesConfig.repositoryToManagePages}`,
-				repositoryPullRequests
-			),
-			"utf8"
-		);
-	}
-
-	await writeFile(
-		path.join(outputDir, ".nojekyll"),
-		"",
-		"utf8"
-	);
+	await mkdir(path.dirname(outputPath), { recursive: true });
+	await writeFile(outputPath, `${JSON.stringify(data, null, 2)}\n`, "utf8");
 }
 
-function buildIndexRedirectHtml(target: string): string {
-	const escapedTarget = escapeHtmlAttribute(target);
-
-	return `<!DOCTYPE html>
-<html lang="en">
-<head>
-	<meta charset="utf-8">
-	<meta http-equiv="refresh" content="0; url=${escapedTarget}">
-	<title>Redirecting</title>
-</head>
-<body>
-	<p>Redirecting to <a href="${escapedTarget}">${escapeHtml(target)}</a>.</p>
-</body>
-</html>`;
+function buildRepositoryRoute(repository: string): string {
+	return `/open-prs/${repository}/`;
 }
 
 function groupByRepository(pullRequests: PullRequestReportRow[]): Map<string, PullRequestReportRow[]> {
@@ -616,7 +411,7 @@ async function main(): Promise<void> {
 	const markdown = buildMarkdownReport(pullRequests);
 
 	process.stdout.write(`${markdown}\n`);
-	await writePagesSite(pullRequests);
+	await writePagesStatsData(pullRequests);
 	await writeStepSummary(markdown);
 }
 

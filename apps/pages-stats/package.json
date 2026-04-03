@@ -1,0 +1,22 @@
+{
+  "name": "@engineering-actions/pages-stats",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build && node scripts/postbuild.mjs",
+    "dev": "vite",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.0.4",
+    "typescript": "5.9.2",
+    "vite": "^7.1.9"
+  }
+}

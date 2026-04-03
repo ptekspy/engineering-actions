@@ -1,0 +1,62 @@
+name: Build And Deploy Pages
+
+on:
+  workflow_run:
+    workflows:
+      - List Open PRs
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy-pages:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10.33.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download PR report artifact from triggering run
+        uses: actions/download-artifact@v4
+        with:
+          name: open-prs-json
+          path: apps/pages-stats/src/generated
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Build pages site
+        run: pnpm --filter pages-stats build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/pages-stats/dist
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4

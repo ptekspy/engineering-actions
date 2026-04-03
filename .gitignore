@@ -27,6 +27,7 @@ out/
 build
 dist
 site
+apps/pages-stats/src/generated/open-prs.json
 
 
 # Debug

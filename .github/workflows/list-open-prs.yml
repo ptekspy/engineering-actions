@@ -3,17 +3,11 @@ name: List Open PRs
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/5 7-23 * * *"
+    - cron: "*/5 * * * *"
 
 permissions:
   contents: read
   pull-requests: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
 
 jobs:
   list-open-prs:
@@ -35,24 +29,19 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-      
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build PR reporter
         run: pnpm --filter pr-open-report build
 
-      - name: Generate PR report and Pages site
-        env:
-          PAGES_OUTPUT_DIR: site
+      - name: Generate PR report data
         run: pnpm list-open-prs
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Upload PR report artifact
+        uses: actions/upload-artifact@v4
         with:
-          path: site
-
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
+          name: open-prs-json
+          path: apps/pages-stats/src/generated/open-prs.json
+          if-no-files-found: error
+          retention-days: 7
