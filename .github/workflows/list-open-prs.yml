@@ -8,6 +8,12 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
 
 jobs:
   list-open-prs:
@@ -22,13 +28,31 @@ jobs:
         uses: pnpm/action-setup@v5
         with:
           version: 10.33.0
-          cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
       
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build PR reporter
-        run: pnpm build --filter @engineering-actions/pr-open-report
+        run: pnpm --filter pr-open-report build
 
-      - name: List open PRs
+      - name: Generate PR report and Pages site
+        env:
+          PAGES_OUTPUT_DIR: site
         run: pnpm list-open-prs
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
