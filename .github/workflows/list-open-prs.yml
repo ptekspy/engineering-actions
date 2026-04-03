@@ -3,7 +3,7 @@ name: List Open PRs
 on:
   workflow_dispatch:
   schedule:
-    - cron: "5 7-23 * * *"
+    - cron: "5 * * * *"
 
 permissions:
   contents: read
