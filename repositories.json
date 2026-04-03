@@ -1,0 +1,15 @@
+{
+  "name": "engineering-actions",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "build": "turbo run build",
+    "check": "turbo run check",
+    "list-open-prs": "node apps/pr-open-report/dist/index.js"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.3"
+  },
+  "packageManager": "pnpm@10.32.1"
+}

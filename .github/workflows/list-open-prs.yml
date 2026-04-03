@@ -1,0 +1,34 @@
+name: List Open PRs
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "5 7-17 * * *"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  list-open-prs:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build PR reporter
+        run: npm run build -- --filter=@engineering-actions/pr-open-report
+
+      - name: List open PRs
+        run: node apps/pr-open-report/dist/index.js
