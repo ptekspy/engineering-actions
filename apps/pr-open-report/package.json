@@ -1,5 +1,5 @@
 {
-    "name": "pr-open-report",
+    "name": "@engineering-actions/pr-open-report",
     "version": "0.0.1",
     "type": "module",
     "private": true,
@@ -10,8 +10,8 @@
     },
     "dependencies": {},
     "devDependencies": {
-        "@repo/eslint-config": "workspace:*",
-        "@repo/typescript-config": "workspace:*",
+        "@engineering-actions/eslint-config": "workspace:*",
+        "@engineering-actions/typescript-config": "workspace:*",
         "@types/node": "^22.15.3",
         "typescript": "5.9.2"
     }

@@ -20,10 +20,10 @@ importers:
 
   apps/pr-open-report:
     devDependencies:
-      '@repo/eslint-config':
+      '@engineering-actions/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
-      '@repo/typescript-config':
+      '@engineering-actions/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
       '@types/node':
